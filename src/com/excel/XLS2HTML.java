@@ -25,10 +25,14 @@ import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.semanticweb.owlapi.model.OWLClass;
+import org.semanticweb.owlapi.model.OWLObjectProperty;
+
+import com.ontologies.Ontology;
 
 public final class XLS2HTML implements ActionListener, Callback {
 
-  	/**
+	/**
 	 * Public constants
 	 */
 	public static final String[] FILE_TYPES = new String[] { "xls", "xlsx" };
@@ -65,7 +69,7 @@ public final class XLS2HTML implements ActionListener, Callback {
 		openBtn.addActionListener(this);
 		exitBtn = new JButton(EXIT_BTN_ACTIVE_TEXT);
 		exitBtn.addActionListener(this);
-		
+
 		panel = new JPanel();
 		panel.add(openBtn);
 		panel.add(new JLabel(GAP));
@@ -152,7 +156,7 @@ final class XLS2HTMLParser implements Runnable {
 	private static final String HTML_TD_E = "</td>";
 	public Workbook workbook;
 	Sheet sheet;
-	
+
 	private File file;
 	private Callback callback;
 
@@ -190,25 +194,43 @@ final class XLS2HTMLParser implements Runnable {
 		writer.write(HTML_SNNIPET_1);
 		writer.write(fileName);
 		writer.write(HTML_SNNIPET_2);
-		
+
 		sheet = workbook.getSheetAt(0);
 		Iterator<Row> rows = sheet.rowIterator();
 		Iterator<Cell> cells = null;
+		
+		// Obtaining the propertiesName by the Cell index
+		ArrayList<String>propertiesName = new ArrayList<String>();
+		propertiesName = getCellsByColRef("A14");
+		
+		Ontology o = new Ontology("http://www.semanticweb.org/ontologies/ont.owl");
+		o.addSubClassAxioms("classA","classB");
+		OWLObjectProperty objProp = o.addObjectProperty("PropertyA");
+		o.addRDFSComment(objProp, "Object property ", "en");
+		o.addDatatypeProperty("PropertyB");
+		
 		while (rows.hasNext()) {
 			Row row = rows.next();
+			
 			cells = row.cellIterator();
 			writer.write(NEW_LINE);
 			writer.write(HTML_TR_S);
-			while (cells.hasNext()) {
+			int i = 0;
+			while (cells.hasNext() && row.getRowNum() >= 27) {
 				Cell cell = cells.next();
-				if(! ((cell.toString().startsWith("#") == true) && (cell.toString().length()==1))) {
-					writer.write(HTML_TD_S);
-					writer.write(cell.toString());
-					writer.write(HTML_TD_E);
+				writer.write(HTML_TD_S);
+				System.out.println(propertiesName.get(i));
+				if(i > 0){
+					
 				}
+				i++;
+				writer.write(cell.toString());
+				//writer.write(cell.toString() + " - " + i + " - ");
+				writer.write(HTML_TD_E);
+				//OWLClass classA = o.addClass(cell.toString());
 			}
 			writer.write(HTML_TR_E);
-			
+
 		}
 		writer.write(NEW_LINE);
 		writer.write(HTML_SNNIPET_3);
@@ -216,17 +238,34 @@ final class XLS2HTMLParser implements Runnable {
 		File newFile = new File(folderName + '\\' + fileName + '-'
 				+ System.currentTimeMillis() + HTML_FILE_EXTENSION);
 		tempFile.renameTo(newFile);
-		
-		// Obtaining the propertiesId by the Cell index
-		ArrayList<String>propertiesId = new ArrayList<String>();
-		propertiesId = getCellsByColRef("A12");
-		
-		// Obtaining the propertiesName by the Cell index
-		ArrayList<String>propertiesName = new ArrayList<String>();
-		propertiesName = getCellsByColRef("A14");
-		
+
+		//o.saveOntFormat(6);
 	}
 	
+	/**
+	 * Return the row of the first occurrence of a given string
+	 * @param <String> obj
+	 * @return <Row> 
+	 */
+	public Row getRowByString(String obj){
+		sheet = workbook.getSheetAt(0);
+		Iterator<Row> rows = sheet.rowIterator();
+		Iterator<Cell> cells = null;
+		Row toReturn = null;
+		while (rows.hasNext()) {
+			Row row = rows.next();
+			cells = row.cellIterator();
+			while (cells.hasNext()) {
+				Cell cell = cells.next();
+				if(cell.toString().contains(obj)) {
+					toReturn = row;
+					break;
+				}
+			}
+		}
+		return toReturn;
+	}
+
 	/**
 	 * Return an string Array of the contents of a row
 	 * @param cellRef
@@ -237,10 +276,11 @@ final class XLS2HTMLParser implements Runnable {
 		CellReference ref = new CellReference(cellRef);
 		Row row = sheet.getRow(ref.getRow());
 		if (row != null) {
-		    for (Cell cell : row) {
-	            cellsContent.add(cell.toString());
-	        }
+			for (Cell cell : row) {
+				cellsContent.add(cell.toString());
+			}
 		}
+		//cellsContent.remove(0);
 		return cellsContent;
 	}
 
