@@ -8,6 +8,7 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Iterator;
 
@@ -18,6 +19,7 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
+import org.apache.poi.hssf.usermodel.HSSFCell;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.hssf.util.CellReference;
 import org.apache.poi.ss.usermodel.Cell;
@@ -202,12 +204,8 @@ final class XLS2HTMLParser implements Runnable {
 		// Obtaining the propertiesName by the Cell index
 		ArrayList<String>propertiesName = new ArrayList<String>();
 		propertiesName = getCellsByColRef("A14");
-		
+
 		Ontology o = new Ontology("http://www.semanticweb.org/ontologies/ont.owl");
-		o.addSubClassAxioms("classA","classB");
-		OWLObjectProperty objProp = o.addObjectProperty("PropertyA");
-		o.addRDFSComment(objProp, "Object property ", "en");
-		o.addDatatypeProperty("PropertyB");
 		
 		while (rows.hasNext()) {
 			Row row = rows.next();
@@ -216,18 +214,84 @@ final class XLS2HTMLParser implements Runnable {
 			writer.write(NEW_LINE);
 			writer.write(HTML_TR_S);
 			int i = 0;
+			OWLClass parentClass = null;
 			while (cells.hasNext() && row.getRowNum() >= 27) {
-				Cell cell = cells.next();
+				HSSFCell cell = (HSSFCell)cells.next();
 				writer.write(HTML_TD_S);
-				System.out.println(propertiesName.get(i));
-				if(i > 0){
+				//System.out.println(propertiesName.get(i));
+				//System.out.println(cell.toString() +"  ----   " + cell.getColumnIndex() + " \n");
+				
+	            String value = "";
+
+	            switch (cell.getCellType()) {
+	                case HSSFCell.CELL_TYPE_NUMERIC:
+	                    value = BigDecimal.valueOf(cell.getNumericCellValue()).toPlainString();
+	                    break;
+
+	                case HSSFCell.CELL_TYPE_STRING:
+	                    value = cell.getStringCellValue();
+	                    break;
+
+	                case HSSFCell.CELL_TYPE_BLANK:
+	                    value = "";
+	                    break;
+	            }
+				
+				String propertyName = propertiesName.get(i);
+				
+				switch (propertyName) {
+				case "Code":
+					parentClass = o.addClass(value);
+					o.addRDFSLabel(parentClass, value, "en");
+					break;
 					
+				case "PreferredName.EN":
+					o.addSkosPrefLabel(parentClass, value, "en");
+					break; 
+					
+				case "SynonymousName.EN":
+					o.addSkosAltLabel(parentClass, value, "en");
+					break; 		
+					
+				case "Definition.EN":
+					o.addRDFSComment(parentClass, value, "en");
+					break;	
+				
+				case "Superclass":
+					if(!"".equals(value)){
+						OWLClass cls = o.addClass(value);
+						o.addSubclass(parentClass,cls);
+					}
+					break;	
+
+				default:
+					break;
 				}
-				i++;
+				
+				/*if(propertiesName.get(i).equals("Code")){
+					System.out.println(" SSS " + cell.toString() + "  AAA ");
+					parentClass = o.addClass(cell.toString());
+				}
+				
+				if(propertiesName.get(i).equals("PreferredName.EN")){
+					o.addSkosPrefLabel(parentClass, cell.toString(), "en");
+				}
+				
+				if(propertiesName.get(i).equals("Definition.EN")){
+					o.addRDFSComment(parentClass, cell.toString(), "en");
+				}
+				
+				if(propertiesName.get(i).equals("Superclass")){
+					System.out.println(" SSS " + cell.toString() + "  AAA ");
+					OWLClass cls = o.addClass(cell.toString());
+					o.addSubclass(parentClass,cls);
+				}*/
+				 
+				
 				writer.write(cell.toString());
 				//writer.write(cell.toString() + " - " + i + " - ");
 				writer.write(HTML_TD_E);
-				//OWLClass classA = o.addClass(cell.toString());
+				i++;
 			}
 			writer.write(HTML_TR_E);
 
@@ -239,7 +303,7 @@ final class XLS2HTMLParser implements Runnable {
 				+ System.currentTimeMillis() + HTML_FILE_EXTENSION);
 		tempFile.renameTo(newFile);
 
-		//o.saveOntFormat(6);
+		o.saveOntFormat(6);
 	}
 	
 	/**
